@@ -23,11 +23,11 @@ export default function Home() {
   const forhandsvisningRef = useRef(null)
   const skrivUt = useReactToPrint({ contentRef: forhandsvisningRef })
 
-  function uppdatera(falt, varde) {
+  function uppdatera(falt: string, varde: string) {
     setFaktura({ ...faktura, [falt]: varde })
   }
 
-  function uppdateraRad(index, falt, varde) {
+  function uppdateraRad(index: number, falt: string, varde: string | number) {
     const nyaRader = [...rader]
     nyaRader[index][falt] = varde
     setRader(nyaRader)

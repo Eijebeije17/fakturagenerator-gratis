@@ -27,9 +27,9 @@ export default function Home() {
     setFaktura({ ...faktura, [falt]: varde })
   }
 
-  function uppdateraRad(index: number, falt: string, varde: string | number) {
+  function uppdateraRad(index: number, falt: 'beskrivning' | 'antal' | 'pris', varde: string | number) {
     const nyaRader = [...rader]
-    nyaRader[index][falt] = varde
+    nyaRader[index][falt] = varde as never
     setRader(nyaRader)
   }
 

@@ -37,7 +37,7 @@ export default function Home() {
     setRader([...rader, { beskrivning: '', antal: 1, pris: 0 }])
   }
 
-  function taBortRad(index) {
+  function taBortRad(index: number) {
     setRader(rader.filter((_, i) => i !== index))
   }
 
@@ -45,7 +45,7 @@ export default function Home() {
   const moms = subtotal * 0.25
   const totalt = subtotal + moms
 
-  function formateraSEK(nummer) {
+  function formateraSEK(nummer: number) {
     return nummer.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
   }
 

@@ -1,52 +1,207 @@
 'use client'
 
-import { useState } from 'react'
-
-import { useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useReactToPrint } from 'react-to-print'
 
 export default function Home() {
   const [faktura, setFaktura] = useState({
     mittForetag: '',
     mittOrgnr: '',
+    mittMoms: '',
+    mittAdress: '',
+    mittPostort: '',
+    mittTelefon: '',
+    mittEpost: '',
+    mittBankgiro: '',
+    mittReferens: '',
     kundNamn: '',
+    kundOrgnr: '',
     kundAdress: '',
-    fakturaNummer: '2024-001',
+    kundPostort: '',
+    kundReferens: '',
+    fakturaNummer: '2025-001',
     fakturaDatum: '',
     forfalloDatum: '',
+    betalningsvillkor: '30',
+    ocr: '',
+    meddelande: '',
   })
 
   const [rader, setRader] = useState([
-    { beskrivning: '', antal: 1, pris: 0 }
+    { beskrivning: '', antal: '', pris: '' }
   ])
 
+  const [momssats, setMomssats] = useState(0.25)
+  const [betalningstyp, setBetalningstyp] = useState('bankgiro')
+  const [fSkatt, setFSkatt] = useState(true)
+  const [drojsmal, setDrojsmal] = useState(true)
+  const [logga, setLogga] = useState<string | null>(null)
+  const [accentFarg, setAccentFarg] = useState('#1a1a2e')
+  const [sparadMeddelande, setSparadMeddelande] = useState('')
+  const [valideringsfel, setValideringsfel] = useState<string[]>([])
+
   const forhandsvisningRef = useRef(null)
+  const loggaRef = useRef<HTMLInputElement>(null)
   const skrivUt = useReactToPrint({ contentRef: forhandsvisningRef })
 
-  function uppdatera(falt: string, varde: string) {
-    setFaktura({ ...faktura, [falt]: varde })
+  useEffect(() => {
+    const sparat = localStorage.getItem('faktura-utkast')
+    if (sparat) {
+      const data = JSON.parse(sparat)
+      if (data.faktura) setFaktura(data.faktura)
+      if (data.rader) setRader(data.rader)
+      if (data.momssats) setMomssats(data.momssats)
+      if (data.betalningstyp) setBetalningstyp(data.betalningstyp)
+      if (data.fSkatt !== undefined) setFSkatt(data.fSkatt)
+      if (data.drojsmal !== undefined) setDrojsmal(data.drojsmal)
+      if (data.logga) setLogga(data.logga)
+      if (data.accentFarg) setAccentFarg(data.accentFarg)
+    }
+  }, [])
+
+  useEffect(() => {
+    const data = { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg }
+    localStorage.setItem('faktura-utkast', JSON.stringify(data))
+  }, [faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg])
+
+  function formateraDatum(datum: string) {
+    if (!datum) return '—'
+    const d = new Date(datum)
+    return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  function uppdateraRad(index: number, falt: 'beskrivning' | 'antal' | 'pris', varde: string | number) {
+  function uppdatera(falt: string, varde: string) {
+    const nyFaktura = { ...faktura, [falt]: varde }
+    if (falt === 'fakturaDatum' || falt === 'betalningsvillkor') {
+      const datum = falt === 'fakturaDatum' ? varde : faktura.fakturaDatum
+      const dagar = falt === 'betalningsvillkor' ? parseInt(varde) : parseInt(faktura.betalningsvillkor)
+      if (datum && dagar) {
+        const forfallo = new Date(datum)
+        forfallo.setDate(forfallo.getDate() + dagar)
+        nyFaktura.forfalloDatum = forfallo.toISOString().split('T')[0]
+      }
+    }
+    setFaktura(nyFaktura)
+  }
+
+  function uppdateraRad(index: number, falt: 'beskrivning' | 'antal' | 'pris', varde: string) {
     const nyaRader = [...rader]
-    nyaRader[index][falt] = varde as never
+    nyaRader[index][falt] = varde
     setRader(nyaRader)
   }
 
   function laggTillRad() {
-    setRader([...rader, { beskrivning: '', antal: 1, pris: 0 }])
+    setRader([...rader, { beskrivning: '', antal: '', pris: '' }])
   }
 
   function taBortRad(index: number) {
     setRader(rader.filter((_, i) => i !== index))
   }
 
-  const subtotal = rader.reduce((sum, rad) => sum + rad.antal * rad.pris, 0)
-  const moms = subtotal * 0.25
+  function laddaUppLogga(e: React.ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0]
+    if (!fil) return
+    // Filstorleksgräns: max 2MB
+    if (fil.size > 2 * 1024 * 1024) {
+      alert('Loggan är för stor. Max 2MB är tillåtet.')
+      return
+    }
+    const lasare = new FileReader()
+    lasare.onload = (ev) => setLogga(ev.target?.result as string)
+    lasare.readAsDataURL(fil)
+  }
+
+  function sparaManuellt() {
+    const data = { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg }
+    localStorage.setItem('faktura-utkast', JSON.stringify(data))
+    setSparadMeddelande('Sparat!')
+    setTimeout(() => setSparadMeddelande(''), 2000)
+  }
+
+  function nyttFakturaNummer(nuvarande: string) {
+    // Räknar upp fakturanumret automatiskt, t.ex. 2025-001 -> 2025-002
+    const delar = nuvarande.split('-')
+    if (delar.length === 2) {
+      const prefix = delar[0]
+      const nummer = parseInt(delar[1])
+      if (!isNaN(nummer)) {
+        return `${prefix}-${String(nummer + 1).padStart(delar[1].length, '0')}`
+      }
+    }
+    return nuvarande
+  }
+
+  function rensaAllt() {
+    const nyttNummer = nyttFakturaNummer(faktura.fakturaNummer)
+    localStorage.removeItem('faktura-utkast')
+    setFaktura({
+      mittForetag: faktura.mittForetag,
+      mittOrgnr: faktura.mittOrgnr,
+      mittMoms: faktura.mittMoms,
+      mittAdress: faktura.mittAdress,
+      mittPostort: faktura.mittPostort,
+      mittTelefon: faktura.mittTelefon,
+      mittEpost: faktura.mittEpost,
+      mittBankgiro: faktura.mittBankgiro,
+      mittReferens: faktura.mittReferens,
+      kundNamn: '',
+      kundOrgnr: '',
+      kundAdress: '',
+      kundPostort: '',
+      kundReferens: '',
+      fakturaNummer: nyttNummer,
+      fakturaDatum: '',
+      forfalloDatum: '',
+      betalningsvillkor: faktura.betalningsvillkor,
+      ocr: '',
+      meddelande: '',
+    })
+    setRader([{ beskrivning: '', antal: '', pris: '' }])
+    setValideringsfel([])
+  }
+
+  function valideraOchExportera() {
+    const fel: string[] = []
+    if (!faktura.mittForetag) fel.push('Företagsnamn saknas')
+    if (!faktura.mittOrgnr) fel.push('Org.nummer saknas')
+    if (!faktura.mittMoms) fel.push('Momsreg.nummer saknas')
+    if (!faktura.mittAdress) fel.push('Din gatuadress saknas')
+    if (!faktura.mittPostort) fel.push('Ditt postnummer och ort saknas')
+    if (!faktura.mittBankgiro) fel.push(`${betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} saknas`)
+    if (!faktura.kundNamn) fel.push('Kundnamn saknas')
+    if (!faktura.fakturaDatum) fel.push('Fakturadatum saknas')
+    if (!faktura.forfalloDatum) fel.push('Förfallodatum saknas — ange fakturadatum och betalningsvillkor')
+    const harRader = rader.some(r => r.beskrivning && r.antal && r.pris)
+    if (!harRader) fel.push('Minst en fakturarad med beskrivning, antal och pris krävs')
+
+    if (fel.length > 0) {
+      setValideringsfel(fel)
+      return
+    }
+
+    setValideringsfel([])
+    skrivUt()
+  }
+
+  const synligaRader = rader.filter(rad => rad.beskrivning || rad.antal || rad.pris)
+  const subtotal = synligaRader.reduce((sum, rad) => sum + (parseFloat(rad.antal) || 0) * (parseFloat(rad.pris) || 0), 0)
+  const moms = subtotal * momssats
   const totalt = subtotal + moms
 
   function formateraSEK(nummer: number) {
     return nummer.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
+  }
+
+  function Etikett({ text, obligatorisk }: { text: string, obligatorisk?: boolean }) {
+    return (
+      <label className="text-sm text-gray-500 flex items-center gap-1">
+        {text}
+        {obligatorisk
+          ? <span className="text-red-400 font-medium">*</span>
+          : <span className="text-gray-300 text-xs">(valfritt)</span>
+        }
+      </label>
+    )
   }
 
   return (
@@ -56,75 +211,200 @@ export default function Home() {
       <div className="w-1/2 p-8 overflow-y-auto">
         <h1 className="text-3xl font-bold text-gray-800">Fakturagenerator</h1>
         <p className="text-gray-500 mt-2">Fyll i uppgifterna nedan</p>
+        <p className="text-xs text-gray-400 mt-1"><span className="text-red-400">*</span> = obligatoriskt fält</p>
 
-        <div className="mt-8 bg-white rounded-xl p-6 shadow-sm">
+        {/* Ditt företag */}
+        <div className="mt-6 bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Ditt företag</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-500">Företagsnamn</label>
+              <Etikett text="Företagsnamn" obligatorisk />
               <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Ditt AB" value={faktura.mittForetag} onChange={(e) => uppdatera('mittForetag', e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Org.nummer</label>
+              <Etikett text="Org.nummer" obligatorisk />
               <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="556XXX-XXXX" value={faktura.mittOrgnr} onChange={(e) => uppdatera('mittOrgnr', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Momsreg.nummer" obligatorisk />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="SE556XXXXXXXX01" value={faktura.mittMoms} onChange={(e) => uppdatera('mittMoms', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Gatuadress" obligatorisk />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Storgatan 1" value={faktura.mittAdress} onChange={(e) => uppdatera('mittAdress', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Postnummer och ort" obligatorisk />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="123 45 Stockholm" value={faktura.mittPostort} onChange={(e) => uppdatera('mittPostort', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Telefon" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="070-123 45 67" value={faktura.mittTelefon} onChange={(e) => uppdatera('mittTelefon', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="E-post" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="din@email.se" value={faktura.mittEpost} onChange={(e) => uppdatera('mittEpost', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Vår referens" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Din kontaktperson" value={faktura.mittReferens} onChange={(e) => uppdatera('mittReferens', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Betalningstyp" obligatorisk />
+              <select className="w-full border border-gray-200 rounded-lg p-2 mt-1" value={betalningstyp} onChange={(e) => setBetalningstyp(e.target.value)}>
+                <option value="bankgiro">Bankgiro</option>
+                <option value="plusgiro">Plusgiro</option>
+              </select>
+            </div>
+            <div>
+              <Etikett text={betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} obligatorisk />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder={betalningstyp === 'bankgiro' ? '1234-5678' : '12 34 56-7'} value={faktura.mittBankgiro} onChange={(e) => uppdatera('mittBankgiro', e.target.value)} />
             </div>
           </div>
         </div>
 
+        {/* Kund */}
         <div className="mt-4 bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Kund</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-500">Kundnamn</label>
+              <Etikett text="Kundnamn / Företag" obligatorisk />
               <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Kunden AB" value={faktura.kundNamn} onChange={(e) => uppdatera('kundNamn', e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Adress</label>
-              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Storgatan 1, Stockholm" value={faktura.kundAdress} onChange={(e) => uppdatera('kundAdress', e.target.value)} />
+              <Etikett text="Kundens org.nummer" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="556XXX-XXXX" value={faktura.kundOrgnr} onChange={(e) => uppdatera('kundOrgnr', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Gatuadress" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Kundgatan 1" value={faktura.kundAdress} onChange={(e) => uppdatera('kundAdress', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Postnummer och ort" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="654 32 Göteborg" value={faktura.kundPostort} onChange={(e) => uppdatera('kundPostort', e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Etikett text="Er referens (kontaktperson hos kunden)" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="Anna Svensson" value={faktura.kundReferens} onChange={(e) => uppdatera('kundReferens', e.target.value)} />
             </div>
           </div>
         </div>
 
+        {/* Fakturadetaljer */}
         <div className="mt-4 bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Fakturadetaljer</h2>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-sm text-gray-500">Fakturanummer</label>
+              <Etikett text="Fakturanummer" obligatorisk />
               <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" value={faktura.fakturaNummer} onChange={(e) => uppdatera('fakturaNummer', e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Fakturadatum</label>
+              <Etikett text="Fakturadatum" obligatorisk />
               <input type="date" className="w-full border border-gray-200 rounded-lg p-2 mt-1" value={faktura.fakturaDatum} onChange={(e) => uppdatera('fakturaDatum', e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Förfallodatum</label>
-              <input type="date" className="w-full border border-gray-200 rounded-lg p-2 mt-1" value={faktura.forfalloDatum} onChange={(e) => uppdatera('forfalloDatum', e.target.value)} />
+              <Etikett text="Förfallodatum" obligatorisk />
+              <input type="date" className="w-full border border-gray-200 rounded-lg p-2 mt-1 bg-gray-50 text-gray-400 cursor-not-allowed" value={faktura.forfalloDatum} readOnly />
+            </div>
+            <div>
+              <Etikett text="Betalningsvillkor (dagar)" obligatorisk />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" type="text" placeholder="30" value={faktura.betalningsvillkor} onChange={(e) => uppdatera('betalningsvillkor', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="OCR / Referensnummer" />
+              <input className="w-full border border-gray-200 rounded-lg p-2 mt-1" placeholder="t.ex. 20250001" value={faktura.ocr} onChange={(e) => uppdatera('ocr', e.target.value)} />
+            </div>
+            <div>
+              <Etikett text="Momssats" obligatorisk />
+              <select className="w-full border border-gray-200 rounded-lg p-2 mt-1" value={momssats} onChange={(e) => setMomssats(parseFloat(e.target.value))}>
+                <option value={0.25}>25%</option>
+                <option value={0.12}>12%</option>
+                <option value={0.06}>6%</option>
+                <option value={0}>0%</option>
+              </select>
             </div>
           </div>
         </div>
 
+        {/* Fakturarader */}
         <div className="mt-4 bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Fakturarader</h2>
           <div className="grid grid-cols-12 gap-2 mb-2">
-            <div className="col-span-6 text-sm text-gray-500">Beskrivning</div>
-            <div className="col-span-2 text-sm text-gray-500">Antal</div>
-            <div className="col-span-3 text-sm text-gray-500">Pris (kr)</div>
+            <div className="col-span-6 text-sm text-gray-500 flex items-center gap-1">Beskrivning <span className="text-red-400">*</span></div>
+            <div className="col-span-2 text-sm text-gray-500 flex items-center gap-1">Antal <span className="text-red-400">*</span></div>
+            <div className="col-span-3 text-sm text-gray-500 flex items-center gap-1">Pris (kr) <span className="text-red-400">*</span></div>
             <div className="col-span-1"></div>
           </div>
           {rader.map((rad, index) => (
             <div key={index} className="grid grid-cols-12 gap-2 mb-2">
               <input className="col-span-6 border border-gray-200 rounded-lg p-2" placeholder="Beskrivning av tjänst" value={rad.beskrivning} onChange={(e) => uppdateraRad(index, 'beskrivning', e.target.value)} />
-              <input className="col-span-2 border border-gray-200 rounded-lg p-2" type="number" value={rad.antal} onChange={(e) => uppdateraRad(index, 'antal', parseFloat(e.target.value))} />
-              <input className="col-span-3 border border-gray-200 rounded-lg p-2" type="number" placeholder="0" value={rad.pris} onChange={(e) => uppdateraRad(index, 'pris', parseFloat(e.target.value))} />
+              <input className="col-span-2 border border-gray-200 rounded-lg p-2" type="text" placeholder="1" value={rad.antal} onChange={(e) => uppdateraRad(index, 'antal', e.target.value)} />
+              <input className="col-span-3 border border-gray-200 rounded-lg p-2" type="text" placeholder="0" value={rad.pris} onChange={(e) => uppdateraRad(index, 'pris', e.target.value)} />
               <button className="col-span-1 text-red-400 hover:text-red-600" onClick={() => taBortRad(index)}>✕</button>
             </div>
           ))}
           <button className="mt-2 text-sm text-blue-500 hover:text-blue-700" onClick={laggTillRad}>+ Lägg till rad</button>
           <div className="mt-6 border-t pt-4 text-right">
             <p className="text-gray-500 text-sm">Subtotal: {formateraSEK(subtotal)}</p>
-            <p className="text-gray-500 text-sm">Moms (25%): {formateraSEK(moms)}</p>
+            <p className="text-gray-500 text-sm">Moms ({Math.round(momssats * 100)}%): {formateraSEK(moms)}</p>
             <p className="text-xl font-bold text-gray-800 mt-2">Totalt: {formateraSEK(totalt)}</p>
           </div>
+        </div>
+
+        {/* Inställningar */}
+        <div className="mt-4 bg-white rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Inställningar</h2>
+          <div className="flex flex-col gap-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={fSkatt} onChange={(e) => setFSkatt(e.target.checked)} className="w-4 h-4" />
+              <span className="text-sm text-gray-600">Visa F-skattsedel på fakturan</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={drojsmal} onChange={(e) => setDrojsmal(e.target.checked)} className="w-4 h-4" />
+              <span className="text-sm text-gray-600">Visa dröjsmålsränta på fakturan</span>
+            </label>
+            <div>
+              <label className="text-sm text-gray-500">Accentfärg på fakturan</label>
+              <div className="flex items-center gap-3 mt-1">
+                <input type="color" value={accentFarg} onChange={(e) => setAccentFarg(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                <span className="text-sm text-gray-400">{accentFarg}</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500">Företagslogga <span className="text-gray-300 text-xs">(max 2MB)</span></label>
+              <div className="mt-1 flex items-center gap-3">
+                <button onClick={() => loggaRef.current?.click()} className="text-sm border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50">
+                  {logga ? 'Byt logga' : 'Ladda upp logga'}
+                </button>
+                {logga && (
+                  <button onClick={() => setLogga(null)} className="text-sm text-red-400 hover:text-red-600">Ta bort</button>
+                )}
+                <input ref={loggaRef} type="file" accept="image/*" className="hidden" onChange={laddaUppLogga} />
+              </div>
+              {logga && <img src={logga} alt="Logga" className="mt-2 max-h-20 max-w-48 object-contain" />}
+            </div>
+          </div>
+        </div>
+
+        {/* Meddelande */}
+        <div className="mt-4 bg-white rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Meddelande <span className="text-gray-300 text-xs font-normal">(valfritt)</span></h2>
+          <textarea
+            className="w-full border border-gray-200 rounded-lg p-2"
+            rows={3}
+            placeholder="T.ex. Tack för din beställning!"
+            value={faktura.meddelande}
+            onChange={(e) => uppdatera('meddelande', e.target.value)}
+          />
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button onClick={sparaManuellt} className="flex-1 border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+            {sparadMeddelande || 'Spara utkast'}
+          </button>
+          <button onClick={rensaAllt} className="flex-1 border border-gray-200 bg-white text-gray-500 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+            Ny faktura
+          </button>
         </div>
       </div>
 
@@ -132,82 +412,147 @@ export default function Home() {
       <div className="w-1/2 p-8 bg-gray-100 overflow-y-auto">
         <p className="text-sm text-gray-400 mb-4 uppercase tracking-wide">Förhandsvisning</p>
 
-        <button
-          onClick={() => skrivUt()}
-          className="mb-4 bg-black text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800"
-        >
+        <button onClick={valideraOchExportera} className="mb-4 bg-black text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800">
           Exportera som PDF
         </button>
 
-        <div ref={forhandsvisningRef} className="bg-white rounded-xl shadow-sm p-8">
-
-          {/* Fakturahuvud */}
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">Faktura</h2>
-              <p className="text-gray-400 mt-1">#{faktura.fakturaNummer}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-gray-800">{faktura.mittForetag || 'Ditt företag'}</p>
-              <p className="text-sm text-gray-500">{faktura.mittOrgnr}</p>
-            </div>
-          </div>
-
-          {/* Datum */}
-          <div className="flex gap-12 mb-8">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Fakturadatum</p>
-              <p className="text-sm font-medium text-gray-700 mt-1">{faktura.fakturaDatum || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Förfallodatum</p>
-              <p className="text-sm font-medium text-gray-700 mt-1">{faktura.forfalloDatum || '—'}</p>
-            </div>
-          </div>
-
-          {/* Från / Till */}
-          <div className="flex justify-between mb-8">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Från</p>
-              <p className="font-medium text-gray-800">{faktura.mittForetag || '—'}</p>
-              <p className="text-sm text-gray-500">{faktura.mittOrgnr}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Till</p>
-              <p className="font-medium text-gray-800">{faktura.kundNamn || '—'}</p>
-              <p className="text-sm text-gray-500">{faktura.kundAdress}</p>
-            </div>
-          </div>
-
-          {/* Fakturarader */}
-          <table className="w-full mb-6">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left text-xs text-gray-400 uppercase tracking-wide pb-2">Beskrivning</th>
-                <th className="text-center text-xs text-gray-400 uppercase tracking-wide pb-2">Antal</th>
-                <th className="text-right text-xs text-gray-400 uppercase tracking-wide pb-2">Á-pris</th>
-                <th className="text-right text-xs text-gray-400 uppercase tracking-wide pb-2">Summa</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rader.map((rad, index) => (
-                <tr key={index} className="border-b border-gray-50">
-                  <td className="py-2 text-sm text-gray-700">{rad.beskrivning || '—'}</td>
-                  <td className="py-2 text-sm text-gray-700 text-center">{rad.antal}</td>
-                  <td className="py-2 text-sm text-gray-700 text-right">{formateraSEK(rad.pris)}</td>
-                  <td className="py-2 text-sm text-gray-700 text-right">{formateraSEK(rad.antal * rad.pris)}</td>
-                </tr>
+        {/* Valideringsfel */}
+        {valideringsfel.length > 0 && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-red-600 mb-2">Fyll i följande innan du exporterar:</p>
+            <ul className="flex flex-col gap-1">
+              {valideringsfel.map((fel, i) => (
+                <li key={i} className="text-sm text-red-500">• {fel}</li>
               ))}
-            </tbody>
-          </table>
-
-          {/* Totaler */}
-          <div className="flex flex-col items-end gap-1">
-            <p className="text-sm text-gray-500">Subtotal: {formateraSEK(subtotal)}</p>
-            <p className="text-sm text-gray-500">Moms (25%): {formateraSEK(moms)}</p>
-            <p className="text-xl font-bold text-gray-800 mt-2 border-t pt-2">Totalt: {formateraSEK(totalt)}</p>
+            </ul>
           </div>
+        )}
 
+        <div ref={forhandsvisningRef} className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div style={{ backgroundColor: accentFarg }} className="h-2 w-full" />
+
+          <div className="p-8">
+            {/* Huvud — logga visas alltid om den finns, "Faktura" visas alltid */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                {logga && (
+                  <img src={logga} alt="Logga" className="max-h-20 max-w-48 object-contain mb-2" />
+                )}
+                <h2 className="text-3xl font-bold text-gray-800">Faktura</h2>
+                <p className="text-gray-400 mt-1">#{faktura.fakturaNummer}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-gray-800">{faktura.mittForetag || '—'}</p>
+                {faktura.mittAdress && <p className="text-sm text-gray-500">{faktura.mittAdress}</p>}
+                {faktura.mittPostort && <p className="text-sm text-gray-500">{faktura.mittPostort}</p>}
+                {faktura.mittTelefon && <p className="text-sm text-gray-500">{faktura.mittTelefon}</p>}
+                {faktura.mittEpost && <p className="text-sm text-gray-500">{faktura.mittEpost}</p>}
+              </div>
+            </div>
+
+            <div className="flex justify-between mb-8">
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Faktureras till</p>
+                <p className="font-medium text-gray-800">{faktura.kundNamn || '—'}</p>
+                {faktura.kundOrgnr && <p className="text-sm text-gray-500">Org.nr: {faktura.kundOrgnr}</p>}
+                {faktura.kundAdress && <p className="text-sm text-gray-500">{faktura.kundAdress}</p>}
+                {faktura.kundPostort && <p className="text-sm text-gray-500">{faktura.kundPostort}</p>}
+                {faktura.kundReferens && <p className="text-sm text-gray-500">Er ref: {faktura.kundReferens}</p>}
+                {faktura.mittReferens && <p className="text-sm text-gray-500">Vår ref: {faktura.mittReferens}</p>}
+              </div>
+              <div className="text-right">
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Fakturadatum</p>
+                  <p className="text-sm font-medium text-gray-700 mt-1">{formateraDatum(faktura.fakturaDatum)}</p>
+                </div>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Förfallodatum</p>
+                  <p className="text-sm font-bold mt-1" style={{ color: accentFarg }}>{formateraDatum(faktura.forfalloDatum)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Betalningsvillkor</p>
+                  <p className="text-sm font-medium text-gray-700 mt-1">{faktura.betalningsvillkor} dagar netto</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fakturarader — endast rader med innehåll visas */}
+            <table className="w-full mb-6">
+              <thead>
+                <tr style={{ borderBottomColor: accentFarg }} className="border-b-2">
+                  <th className="text-left text-xs text-gray-400 uppercase tracking-wide pb-2">Beskrivning</th>
+                  <th className="text-center text-xs text-gray-400 uppercase tracking-wide pb-2">Antal</th>
+                  <th className="text-right text-xs text-gray-400 uppercase tracking-wide pb-2">Á-pris</th>
+                  <th className="text-right text-xs text-gray-400 uppercase tracking-wide pb-2">Summa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {synligaRader.map((rad, index) => (
+                  <tr key={index} className="border-b border-gray-100">
+                    <td className="py-2 text-sm text-gray-700">{rad.beskrivning || '—'}</td>
+                    <td className="py-2 text-sm text-gray-700 text-center">{rad.antal || '0'}</td>
+                    <td className="py-2 text-sm text-gray-700 text-right">{formateraSEK(parseFloat(rad.pris) || 0)}</td>
+                    <td className="py-2 text-sm text-gray-700 text-right">{formateraSEK((parseFloat(rad.antal) || 0) * (parseFloat(rad.pris) || 0))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="flex justify-end mb-8">
+              <div className="w-64">
+                <div className="flex justify-between text-sm text-gray-500 mb-1">
+                  <span>Subtotal</span>
+                  <span>{formateraSEK(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-500 mb-1">
+                  <span>Moms ({Math.round(momssats * 100)}%)</span>
+                  <span>{formateraSEK(moms)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-gray-800 border-t-2 pt-2 mt-2" style={{ borderColor: accentFarg }}>
+                  <span>Totalt att betala</span>
+                  <span>{formateraSEK(totalt)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-6 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{betalningstyp === 'bankgiro' ? 'Bankgiro' : 'Plusgiro'}</p>
+                <p className="text-sm font-medium text-gray-800">{faktura.mittBankgiro || '—'}</p>
+              </div>
+              {faktura.ocr && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">OCR / Referens</p>
+                  <p className="text-sm font-medium text-gray-800">{faktura.ocr}</p>
+                </div>
+              )}
+              {faktura.mittOrgnr && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Org.nummer</p>
+                  <p className="text-sm font-medium text-gray-800">{faktura.mittOrgnr}</p>
+                </div>
+              )}
+              {faktura.mittMoms && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Momsreg.nr</p>
+                  <p className="text-sm font-medium text-gray-800">{faktura.mittMoms}</p>
+                </div>
+              )}
+            </div>
+
+            {(fSkatt || drojsmal) && (
+              <div className="mt-6 border-t border-gray-100 pt-4 flex flex-col gap-1">
+                {fSkatt && <p className="text-xs text-gray-400">Innehar F-skattsedel</p>}
+                {drojsmal && <p className="text-xs text-gray-400">Dröjsmålsränta debiteras enligt räntelagen (referensränta + 8%) vid försenad betalning.</p>}
+              </div>
+            )}
+
+            {faktura.meddelande && (
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <p className="text-sm text-gray-500 italic">{faktura.meddelande}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -56,7 +56,7 @@ export default function Startsida() {
           <Link href="/faktura" className="bg-gray-900 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors text-center">
             Skapa faktura
           </Link>
-          <Link href="/login" className="border border-gray-200 text-gray-600 px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors text-center">
+          <Link href="/registrera" className="block text-center bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors">
             Skapa konto
           </Link>
         </div>

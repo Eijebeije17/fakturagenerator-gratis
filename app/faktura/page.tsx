@@ -45,6 +45,9 @@ export default function Home() {
     const [erMobil, setErMobil] = useState(false)
     const [anvandare, setAnvandare] = useState<{ email: string } | null>(null)
     const [oppetFakturaId, setOppetFakturaId] = useState<number | null>(null)
+    const [notis, setNotis] = useState<{ text: string, typ: 'success' | 'error' } | null>(null)
+    const [antalExporterade, setAntalExporterade] = useState(0)
+    const [laddatExporterade, setLaddatExporterade] = useState(false)
 
     const forhandsvisningRef = useRef(null)
     const loggaRef = useRef<HTMLInputElement>(null)
@@ -112,6 +115,25 @@ export default function Home() {
             })
     }, [searchParams])
 
+    useEffect(() => {
+        async function hamtaAntalExporterade() {
+            if (anvandare) {
+                const session = await supabase.auth.getSession()
+                const userId = session.data.session?.user.id
+                const { data } = await supabase
+                    .from('anvandare_info')
+                    .select('antal_exporterade, pro')
+                    .eq('user_id', userId)
+                    .single()
+                if (data) setAntalExporterade(data.antal_exporterade)
+            } else {
+                setAntalExporterade(parseInt(localStorage.getItem('antal_exporterade') || '0'))
+            }
+            setLaddatExporterade(true)
+        }
+        hamtaAntalExporterade()
+    }, [anvandare])
+
     function formateraDatum(datum: string) {
         if (!datum) return '—'
         const d = new Date(datum)
@@ -150,7 +172,7 @@ export default function Home() {
         const fil = e.target.files?.[0]
         if (!fil) return
         if (fil.size > 2 * 1024 * 1024) {
-            alert('Loggan är för stor. Max 2MB är tillåtet.')
+            visaNotis('Loggan är för stor. Max 2MB är tillåtet.')
             return
         }
         const lasare = new FileReader()
@@ -225,9 +247,9 @@ export default function Home() {
                 .eq('id', oppetFakturaId)
 
             if (error) {
-                alert('Något gick fel: ' + error.message)
+                visaNotis('Något gick fel: ' + error.message, 'error')
             } else {
-                alert('Fakturan uppdaterades!')
+                visaNotis('Fakturan uppdaterades!')
             }
         } else {
             const { data, error } = await supabase
@@ -240,10 +262,10 @@ export default function Home() {
                 .single()
 
             if (error) {
-                alert('Något gick fel: ' + error.message)
+                visaNotis('Något gick fel: ' + error.message, 'error')
             } else {
                 setOppetFakturaId(data.id)
-                alert('Fakturan sparades!')
+                visaNotis('Fakturan sparades!')
             }
         }
     }
@@ -296,6 +318,7 @@ export default function Home() {
                 .from('anvandare_info')
                 .update({ antal_exporterade: info.antal_exporterade + 1 })
                 .eq('user_id', userId)
+            setAntalExporterade(info.antal_exporterade + 1)
 
         } else {
             // Ej inloggad — kolla localStorage
@@ -306,6 +329,7 @@ export default function Home() {
                 return
             }
             localStorage.setItem('antal_exporterade', String(antal + 1))
+            setAntalExporterade(antal + 1)
         }
 
         setValideringsfel([])
@@ -319,6 +343,11 @@ export default function Home() {
 
     function formateraSEK(nummer: number) {
         return nummer.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
+    }
+
+    function visaNotis(text: string, typ: 'success' | 'error' = 'success') {
+        setNotis({ text, typ })
+        setTimeout(() => setNotis(null), 3000)
     }
 
     function Etikett({ text, obligatorisk }: { text: string, obligatorisk?: boolean }) {
@@ -537,6 +566,11 @@ export default function Home() {
 
     const Forhandsgranskning = (
         <div className="p-4 md:p-8 overflow-y-auto">
+            {laddatExporterade && antalExporterade < 3 && (
+                <p className="text-xs text-gray-400 mb-2">
+                    {3 - antalExporterade} av 3 gratis exporteringar kvar
+                </p>
+            )}
             <button onClick={valideraOchExportera} className="mb-4 w-full md:w-auto bg-black text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800">
                 Exportera som PDF
             </button>
@@ -712,6 +746,12 @@ export default function Home() {
                     )}
                 </div>
             </nav>
+
+            {notis && (
+                <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg transition-all ${notis.typ === 'success' ? 'bg-gray-900 text-white' : 'bg-red-500 text-white'}`}>
+                    {notis.text}
+                </div>
+            )}
 
             <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 flex">
                 <button

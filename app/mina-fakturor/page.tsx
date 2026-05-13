@@ -118,7 +118,9 @@ export default function MinaFakturor() {
                                     >
                                         <td className="p-4 text-sm font-medium text-gray-800">#{f.faktura_nummer}</td>
                                         <td className="p-4 text-sm text-gray-600">{f.kund_namn || '—'}</td>
-                                        <td className="p-4 text-sm text-gray-500 hidden md:table-cell">{formateraDatum(f.skapad)}</td>
+                                        <td className="p-4 text-sm text-gray-500 hidden md:table-cell">
+                                            {formateraDatum((f.faktura_data as Record<string, Record<string, string>>)?.faktura?.fakturaDatum || f.skapad)}
+                                        </td>
                                         <td className="p-4 text-sm font-medium text-gray-800 text-right">{formateraSEK(f.totalt)}</td>
                                         <td className="p-4 text-right">
                                             <div className="flex gap-3 justify-end items-center">

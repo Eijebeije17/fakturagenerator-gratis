@@ -1,18 +1,24 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '../supabase'
 
 export default function Login() {
   const [epost, setEpost] = useState('')
   const [skickat, setSkickat] = useState(false)
   const [laddar, setLaddar] = useState(false)
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get('redirect') || '/faktura'
 
   async function loggaIn(e: React.FormEvent) {
     e.preventDefault()
     setLaddar(true)
     const { error } = await supabase.auth.signInWithOtp({
       email: epost,
+      options: {
+        emailRedirectTo: `${window.location.origin}${redirect}`,
+      },
     })
     if (error) {
       alert('Något gick fel: ' + error.message)

@@ -1,6 +1,19 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from './supabase'
 import Link from 'next/link'
 
 export default function Startsida() {
+  const [anvandare, setAnvandare] = useState<{ email: string } | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        setAnvandare({ email: data.session.user.email || '' })
+      }
+    })
+  }, [])
   return (
     <div className="min-h-screen bg-white">
 
@@ -8,8 +21,25 @@ export default function Startsida() {
       <nav className="flex justify-between items-center px-6 md:px-10 py-5 border-b border-gray-100">
         <p className="font-semibold text-gray-900 tracking-tight">Fakturagenerator</p>
         <div className="flex gap-3 md:gap-6 items-center">
-          <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Logga in</Link>
-          <Link href="/faktura" className="text-sm bg-gray-900 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">Kom igång</Link>
+          {anvandare ? (
+            <>
+              <Link href="/mina-fakturor" className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden md:block">
+                Mina fakturor
+              </Link>
+              <p className="text-xs text-gray-400 hidden md:block">{anvandare.email}</p>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); setAnvandare(null) }}
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                Logga ut
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login?redirect=/" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Logga in</Link>
+              <Link href="/faktura" className="text-sm bg-gray-900 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">Kom igång</Link>
+            </>
+          )}
         </div>
       </nav>
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useReactToPrint } from 'react-to-print'
+import { supabase } from '../supabase'
 
 export default function Home() {
     const [faktura, setFaktura] = useState({
@@ -41,6 +42,7 @@ export default function Home() {
     const [valideringsfel, setValideringsfel] = useState<string[]>([])
     const [aktivFlik, setAktivFlik] = useState<'formular' | 'forhandsgranskning'>('formular')
     const [erMobil, setErMobil] = useState(false)
+    const [anvandare, setAnvandare] = useState<{ email: string } | null>(null)
     useEffect(() => {
         function kollaStorlek() {
             setErMobil(window.innerWidth < 768)
@@ -73,6 +75,14 @@ export default function Home() {
         const data = { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg }
         localStorage.setItem('faktura-utkast', JSON.stringify(data))
     }, [faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg])
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data }) => {
+            if (data.session?.user) {
+                setAnvandare({ email: data.session.user.email || '' })
+            }
+        })
+    }, [])
 
     function formateraDatum(datum: string) {
         if (!datum) return '—'
@@ -166,6 +176,25 @@ export default function Home() {
         })
         setRader([{ beskrivning: '', antal: '', pris: '' }])
         setValideringsfel([])
+    }
+
+    async function sparaTillSupabase() {
+        if (!anvandare) return
+
+        const { error } = await supabase.from('fakturor').insert({
+            user_id: (await supabase.auth.getSession()).data.session?.user.id,
+            faktura_data: { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg },
+            faktura_nummer: faktura.fakturaNummer,
+            kund_namn: faktura.kundNamn,
+            totalt: totalt,
+            skapad: new Date().toISOString(),
+        })
+
+        if (error) {
+            alert('Något gick fel: ' + error.message)
+        } else {
+            alert('Fakturan sparades!')
+        }
     }
 
     function valideraOchExportera() {
@@ -399,9 +428,15 @@ export default function Home() {
             </div>
 
             <div className="mt-4 flex gap-2 pb-8">
-                <button onClick={sparaManuellt} className="flex-1 border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
-                    {sparadMeddelande || 'Spara utkast'}
-                </button>
+                {anvandare ? (
+                    <button onClick={sparaTillSupabase} className="flex-1 border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+                        Spara faktura
+                    </button>
+                ) : (
+                    <button onClick={sparaManuellt} className="flex-1 border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+                        {sparadMeddelande || 'Spara utkast'}
+                    </button>
+                )}
                 <button onClick={rensaAllt} className="flex-1 border border-gray-200 bg-white text-gray-500 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                     Ny faktura
                 </button>
@@ -563,6 +598,31 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-gray-50">
+
+            {/* Navbar */}
+            <nav className="bg-white border-b border-gray-100 px-6 py-3 flex justify-between items-center">
+                <a href="/" className="font-semibold text-gray-900 text-sm tracking-tight">Fakturagenerator</a>
+                <div className="flex items-center gap-4">
+                    {anvandare ? (
+                        <>
+                            <a href="/mina-fakturor" className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden md:block">
+                                Mina fakturor
+                            </a>
+                            <p className="text-xs text-gray-400 hidden md:block">{anvandare.email}</p>
+                            <button
+                                onClick={async () => { await supabase.auth.signOut(); setAnvandare(null) }}
+                                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                            >
+                                Logga ut
+                            </button>
+                        </>
+                    ) : (
+                        <a href="/login?redirect=/faktura" className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                            Logga in
+                        </a>
+                    )}
+                </div>
+            </nav>
             <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 flex">
                 <button
                     onClick={() => setAktivFlik('formular')}

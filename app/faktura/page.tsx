@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useReactToPrint } from 'react-to-print'
 import { supabase } from '../supabase'
+import { useSearchParams } from 'next/navigation'
 
 export default function Home() {
     const [faktura, setFaktura] = useState({
@@ -83,6 +84,31 @@ export default function Home() {
             }
         })
     }, [])
+
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        const id = searchParams.get('id')
+        if (!id) return
+
+        supabase
+            .from('fakturor')
+            .select('faktura_data')
+            .eq('id', id)
+            .single()
+            .then(({ data, error }) => {
+                if (error || !data) return
+                const d = data.faktura_data as Record<string, unknown>
+                if (d.faktura) setFaktura(d.faktura as typeof faktura)
+                if (d.rader) setRader(d.rader as typeof rader)
+                if (d.momssats) setMomssats(d.momssats as number)
+                if (d.betalningstyp) setBetalningstyp(d.betalningstyp as string)
+                if (d.fSkatt !== undefined) setFSkatt(d.fSkatt as boolean)
+                if (d.drojsmal !== undefined) setDrojsmal(d.drojsmal as boolean)
+                if (d.logga) setLogga(d.logga as string)
+                if (d.accentFarg) setAccentFarg(d.accentFarg as string)
+            })
+    }, [searchParams])
 
     function formateraDatum(datum: string) {
         if (!datum) return '—'

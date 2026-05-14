@@ -80,8 +80,20 @@ export default function Home() {
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data }) => {
-            if (data.session?.user) setAnvandare({ email: data.session.user.email || '' })
+            if (data.session?.user) {
+                setAnvandare({ email: data.session.user.email || '' })
+            }
         })
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                setAnvandare({ email: session.user.email || '' })
+            } else {
+                setAnvandare(null)
+            }
+        })
+
+        return () => subscription.unsubscribe()
     }, [])
 
     useEffect(() => {

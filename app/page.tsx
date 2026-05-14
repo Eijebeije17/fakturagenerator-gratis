@@ -12,6 +12,16 @@ export default function Startsida() {
         setAnvandare({ email: data.session.user.email || '' })
       }
     })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setAnvandare({ email: session.user.email || '' })
+      } else {
+        setAnvandare(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
@@ -58,11 +68,17 @@ export default function Startsida() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a href="/faktura" className="bg-[#1a2d6e] text-white px-7 py-4 rounded-full text-sm font-bold hover:bg-[#2a3d8e] transition-colors text-center">
-                  Skapa faktura gratis
+                  {anvandare ? 'Skapa faktura' : 'Skapa faktura gratis'}
                 </a>
-                <a href="/login" className="border border-[#c8c4b0] text-[#555] px-7 py-4 rounded-full text-sm font-bold hover:bg-[#e8e4d4] transition-colors text-center">
-                  Logga in
-                </a>
+                {anvandare ? (
+                  <a href="/mina-fakturor" className="border border-[#c8c4b0] text-[#555] px-7 py-4 rounded-full text-sm font-bold hover:bg-[#e8e4d4] transition-colors text-center">
+                    Mina fakturor
+                  </a>
+                ) : (
+                  <a href="/login" className="border border-[#c8c4b0] text-[#555] px-7 py-4 rounded-full text-sm font-bold hover:bg-[#e8e4d4] transition-colors text-center">
+                    Logga in
+                  </a>
+                )}
               </div>
             </div>
             <p className="text-xs text-[#bbb] md:max-w-xs md:text-right leading-relaxed font-medium">

@@ -28,7 +28,7 @@ export default function Startsida() {
               </a>
             </div>
             <p className="text-xs text-[#bbb] md:max-w-xs md:text-right leading-relaxed font-medium">
-              Helt gratis · Inget konto krävs · Ingen bindningstid
+              Helt gratis · Inget konto krävs · Obegränsat antal fakturor
             </p>
           </div>
         </div>

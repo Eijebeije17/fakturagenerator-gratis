@@ -138,9 +138,13 @@ export default function Startsida() {
 
         {/* Footer */}
         <footer className="border-t border-[#ddd8c4] px-6 md:px-10 py-6 md:py-8">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-sm font-black text-[#1a1a1a]">Fakturagenerator</p>
-            <p className="text-xs text-[#aaa] font-medium">© 2026 — Byggd för svenska företagare</p>
+            <div className="flex gap-6 items-center">
+              <a href="/integritetspolicy" className="text-xs text-[#aaa] hover:text-[#1a2d6e] font-medium transition-colors">Integritetspolicy</a>
+              <a href="/anvandarvillkor" className="text-xs text-[#aaa] hover:text-[#1a2d6e] font-medium transition-colors">Användarvillkor</a>
+              <p className="text-xs text-[#aaa] font-medium">© 2026</p>
+            </div>
           </div>
         </footer>
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import Script from 'next/script'
 
 export const metadata: Metadata = {
   title: 'Fakturafix — Gratis fakturagenerator',
@@ -13,7 +14,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="sv">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "bbdc6cd221a7473eb557cb4550230aaa"}'
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   )
 }

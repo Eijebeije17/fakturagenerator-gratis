@@ -6,7 +6,7 @@ export default function Startsida() {
 
         {/* Navbar */}
         <nav className="px-5 md:px-10 py-4 md:py-5 flex justify-between items-center sticky top-0 z-50 border-b border-[#ddd8c4]" style={{ background: 'rgba(248, 246, 240, 0.95)', backdropFilter: 'blur(12px)' }}>
-          <p className="text-[#1a1a1a] font-black text-base md:text-xl tracking-tight">Fakturagenerator</p>
+          <p className="text-[#1a1a1a] font-black text-base md:text-xl tracking-tight">FakturaFix</p>
           <a href="/faktura" className="bg-[#1a2d6e] text-white text-xs md:text-sm font-bold px-4 py-2.5 md:px-6 md:py-3 rounded-full hover:bg-[#2a3d8e] transition-colors whitespace-nowrap">
             Kom igång →
           </a>

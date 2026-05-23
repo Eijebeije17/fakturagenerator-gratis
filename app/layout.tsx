@@ -3,11 +3,11 @@ import './globals.css'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
-  title: 'Fakturafix — Gratis fakturagenerator',
-  description: 'Skapa korrekta svenska fakturor gratis. Förhandsgranskning i realtid, PDF-export och inga konton krävs.',
+  title: 'Fakturafix — Gratis fakturagenerator för svenska företag',
+  description: 'Skapa professionella svenska fakturor helt gratis. Automatisk momsberäkning, PDF-export och förhandsgranskning i realtid. Inget konto krävs.',
   openGraph: {
-    title: 'Fakturafix — Gratis fakturagenerator',
-    description: 'Skapa korrekta svenska fakturor gratis. Förhandsgranskning i realtid, PDF-export och inga konton krävs.',
+    title: 'Fakturafix — Gratis fakturagenerator för svenska företag',
+    description: 'Skapa professionella svenska fakturor helt gratis. Automatisk momsberäkning, PDF-export och förhandsgranskning i realtid. Inget konto krävs.',
     url: 'https://www.fakturafix.se',
     siteName: 'Fakturafix',
     images: [

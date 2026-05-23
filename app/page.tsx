@@ -16,7 +16,7 @@ export default function Startsida() {
         <div className="max-w-6xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-8 overflow-hidden">
           <p className="text-xs text-[#aaa] uppercase tracking-[0.3em] mb-4 md:mb-6 font-medium">Svenska fakturor</p>
           <h1 className="text-[2rem] sm:text-[5rem] md:text-[8rem] font-black text-[#1a2d6e] leading-[0.95] tracking-tight mb-8 md:mb-12">
-            FAKTURERING<br />SOM<br />FUNGERAR.
+            ENKEL<br />FAKTURERING<br />SOM FUNGERAR.
           </h1>
           <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-8">
             <div className="max-w-sm">
@@ -44,7 +44,7 @@ export default function Startsida() {
         <div className="max-w-6xl mx-auto px-6 md:px-10 py-16 md:py-20">
           <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-12 md:mb-16 gap-4">
             <h2 className="text-3xl md:text-4xl font-black text-[#1a1a1a]">Allt du behöver<br />för att fakturera.</h2>
-            <p className="text-sm text-[#999] md:max-w-xs leading-relaxed md:pt-2 font-medium">Ett enkelt och kraftfullt verktyg anpassat för svenska företagare och frilansare.</p>
+            <p className="text-sm text-[#999] md:max-w-xs leading-relaxed md:pt-2 font-medium">Ett enkelt verktyg anpassat för svenska företagare och frilansare.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-16 gap-y-10 md:gap-y-14">
             {[
@@ -85,9 +85,8 @@ export default function Startsida() {
         {/* Footer */}
         <footer className="border-t border-[#ddd8c4] px-6 md:px-10 py-6 md:py-8">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-sm font-black text-[#1a1a1a]">Fakturagenerator</p>
+            <p className="text-sm font-black text-[#1a1a1a]">FakturaFix</p>
             <div className="flex gap-6 items-center">
-              <p className="text-xs text-[#aaa] font-medium">© 2026</p>
             </div>
           </div>
         </footer>

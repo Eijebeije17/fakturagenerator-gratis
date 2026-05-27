@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useReactToPrint } from 'react-to-print'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function Home() {
   const [faktura, setFaktura] = useState({
@@ -34,11 +35,15 @@ export default function Home() {
   const [drojsmal, setDrojsmal] = useState(true)
   const [logga, setLogga] = useState<string | null>(null)
   const [accentFarg, setAccentFarg] = useState('#1a2d6e')
-  const [sparadMeddelande, setSparadMeddelande] = useState('')
+
   const [valideringsfel, setValideringsfel] = useState<string[]>([])
   const [aktivFlik, setAktivFlik] = useState<'formular' | 'forhandsgranskning'>('formular')
   const [erMobil, setErMobil] = useState(false)
   const [notis, setNotis] = useState<{ text: string, typ: 'success' | 'error' } | null>(null)
+
+  const [bankgiroAktiv, setBankgiroAktiv] = useState(true)
+  const [swishAktiv, setSwishAktiv] = useState(false)
+  const [mittSwish, setMittSwish] = useState('')
 
   const forhandsvisningRef = useRef(null)
   const loggaRef = useRef<HTMLInputElement>(null)
@@ -63,11 +68,14 @@ export default function Home() {
       if (data.drojsmal !== undefined) setDrojsmal(data.drojsmal)
       if (data.logga) setLogga(data.logga)
       if (data.accentFarg) setAccentFarg(data.accentFarg)
+      if (data.bankgiroAktiv !== undefined) setBankgiroAktiv(data.bankgiroAktiv)
+      if (data.swishAktiv !== undefined) setSwishAktiv(data.swishAktiv)
+      if (data.mittSwish) setMittSwish(data.mittSwish)
     }
   }, [])
 
   useEffect(() => {
-    const data = { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg }
+    const data = { faktura, rader, momssats, betalningstyp, bankgiroAktiv, swishAktiv, mittSwish, fSkatt, drojsmal, logga, accentFarg }
     localStorage.setItem('faktura-utkast', JSON.stringify(data))
   }, [faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg])
 
@@ -109,37 +117,6 @@ export default function Home() {
     lasare.readAsDataURL(fil)
   }
 
-  function sparaManuellt() {
-    const data = { faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg }
-    localStorage.setItem('faktura-utkast', JSON.stringify(data))
-    setSparadMeddelande('Sparat!')
-    setTimeout(() => setSparadMeddelande(''), 2000)
-  }
-
-  function nyttFakturaNummer(nuvarande: string) {
-    const delar = nuvarande.split('-')
-    if (delar.length === 2) {
-      const nummer = parseInt(delar[1])
-      if (!isNaN(nummer)) return `${delar[0]}-${String(nummer + 1).padStart(delar[1].length, '0')}`
-    }
-    return nuvarande
-  }
-
-  function rensaAllt() {
-    const nyttNummer = nyttFakturaNummer(faktura.fakturaNummer)
-    localStorage.removeItem('faktura-utkast')
-    setFaktura({
-      mittForetag: faktura.mittForetag, mittOrgnr: faktura.mittOrgnr, mittMoms: faktura.mittMoms,
-      mittAdress: faktura.mittAdress, mittPostort: faktura.mittPostort, mittTelefon: faktura.mittTelefon,
-      mittEpost: faktura.mittEpost, mittBankgiro: faktura.mittBankgiro, mittReferens: faktura.mittReferens,
-      kundNamn: '', kundOrgnr: '', kundAdress: '', kundPostort: '', kundReferens: '',
-      fakturaNummer: nyttNummer, fakturaDatum: '', forfalloDatum: '',
-      betalningsvillkor: faktura.betalningsvillkor, ocr: '', meddelande: '',
-    })
-    setRader([{ beskrivning: '', antal: '', pris: '' }])
-    setValideringsfel([])
-  }
-
   function valideraOchExportera() {
     const fel: string[] = []
     if (!faktura.mittForetag) fel.push('Företagsnamn saknas')
@@ -147,7 +124,9 @@ export default function Home() {
     if (!faktura.mittMoms) fel.push('Momsreg.nummer saknas')
     if (!faktura.mittAdress) fel.push('Din gatuadress saknas')
     if (!faktura.mittPostort) fel.push('Ditt postnummer och ort saknas')
-    if (!faktura.mittBankgiro) fel.push(`${betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} saknas`)
+    if (!bankgiroAktiv && !swishAktiv) fel.push('Minst ett betalningssätt krävs (bankgiro/plusgiro eller Swish)')
+    if (bankgiroAktiv && !faktura.mittBankgiro) fel.push(`${betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} saknas`)
+    if (swishAktiv && !mittSwish) fel.push('Swish-nummer saknas')
     if (!faktura.kundNamn) fel.push('Kundnamn saknas')
     if (!faktura.fakturaDatum) fel.push('Fakturadatum saknas')
     if (!faktura.forfalloDatum) fel.push('Förfallodatum saknas — ange fakturadatum och betalningsvillkor')
@@ -164,6 +143,13 @@ export default function Home() {
 
   function formateraSEK(nummer: number) {
     return nummer.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
+  }
+
+  function skapaSwishUrl() {
+    const nummer = mittSwish.replace(/\D/g, '')
+    const belopp = Math.round(totalt)
+    const meddelande = encodeURIComponent(faktura.ocr.slice(0, 50))
+    return `https://app.swish.nu/1/p/sw/?sw=${nummer}&amt=${belopp}&cur=SEK&msg=${meddelande}&src=qr`
   }
 
   function visaNotis(text: string, typ: 'success' | 'error' = 'success') {
@@ -202,14 +188,38 @@ export default function Home() {
           <div><Etikett text="Telefon" /><input className={inputKlass} placeholder="070-123 45 67" value={faktura.mittTelefon} onChange={(e) => uppdatera('mittTelefon', e.target.value)} /></div>
           <div><Etikett text="E-post" /><input className={inputKlass} placeholder="din@email.se" value={faktura.mittEpost} onChange={(e) => uppdatera('mittEpost', e.target.value)} /></div>
           <div><Etikett text="Vår referens" /><input className={inputKlass} placeholder="Din kontaktperson" value={faktura.mittReferens} onChange={(e) => uppdatera('mittReferens', e.target.value)} /></div>
-          <div>
-            <Etikett text="Betalningstyp" obligatorisk />
-            <select className={inputKlass} value={betalningstyp} onChange={(e) => setBetalningstyp(e.target.value)}>
-              <option value="bankgiro">Bankgiro</option>
-              <option value="plusgiro">Plusgiro</option>
-            </select>
+          <div className="md:col-span-2 flex flex-col gap-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={bankgiroAktiv} onChange={(e) => setBankgiroAktiv(e.target.checked)} className="w-4 h-4 accent-[#1a2d6e]" />
+              <span className="text-sm text-[#555] font-medium">Använd bankgiro / plusgiro</span>
+            </label>
+            {bankgiroAktiv && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Etikett text="Betalningstyp" obligatorisk />
+                  <select className={inputKlass} value={betalningstyp} onChange={(e) => setBetalningstyp(e.target.value)}>
+                    <option value="bankgiro">Bankgiro</option>
+                    <option value="plusgiro">Plusgiro</option>
+                  </select>
+                </div>
+                <div>
+                  <Etikett text={betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} obligatorisk />
+                  <input className={inputKlass} placeholder={betalningstyp === 'bankgiro' ? '1234-5678' : '12 34 56-7'} value={faktura.mittBankgiro} onChange={(e) => uppdatera('mittBankgiro', e.target.value)} />
+                </div>
+              </div>
+            )}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={swishAktiv} onChange={(e) => setSwishAktiv(e.target.checked)} className="w-4 h-4 accent-[#1a2d6e]" />
+              <span className="text-sm text-[#555] font-medium">Använd Swish</span>
+            </label>
+            {swishAktiv && (
+              <div>
+                <Etikett text="Swish-nummer" obligatorisk />
+                <input className={inputKlass} placeholder="070-123 45 67" value={mittSwish} onChange={(e) => setMittSwish(e.target.value)} />
+                {faktura.ocr.length > 50 && <p className="text-xs text-red-400 mt-1">OCR-numret är för långt för Swish-meddelandet (max 50 tecken)</p>}
+              </div>
+            )}
           </div>
-          <div><Etikett text={betalningstyp === 'bankgiro' ? 'Bankgironummer' : 'Plusgironummer'} obligatorisk /><input className={inputKlass} placeholder={betalningstyp === 'bankgiro' ? '1234-5678' : '12 34 56-7'} value={faktura.mittBankgiro} onChange={(e) => uppdatera('mittBankgiro', e.target.value)} /></div>
         </div>
       </div>
 
@@ -300,18 +310,9 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-4 bg-white rounded-2xl p-4 md:p-6 border border-[#e8e4d8]">
+      <div className="mt-4 mb-8 bg-white rounded-2xl p-4 md:p-6 border border-[#e8e4d8]">
         <h2 className="text-sm font-black text-[#1a1a1a] mb-4 uppercase tracking-wide">Meddelande <span className="text-[#ccc] text-xs font-normal normal-case">(valfritt)</span></h2>
         <textarea className={`${inputKlass} resize-none`} rows={3} placeholder="T.ex. Tack för din beställning!" value={faktura.meddelande} onChange={(e) => uppdatera('meddelande', e.target.value)} />
-      </div>
-
-      <div className="mt-4 flex gap-2 pb-8">
-        <button onClick={sparaManuellt} className="flex-1 border border-[#e0ddd4] bg-white text-[#555] px-4 py-3 rounded-full text-sm font-bold hover:bg-[#f8f6f0] transition-colors">
-          {sparadMeddelande || 'Spara utkast'}
-        </button>
-        <button onClick={rensaAllt} className="flex-1 border border-[#e0ddd4] bg-white text-[#888] px-4 py-3 rounded-full text-sm font-bold hover:bg-[#f8f6f0] transition-colors">
-          Ny faktura
-        </button>
       </div>
     </div>
   )
@@ -414,13 +415,43 @@ export default function Home() {
             </div>
 
             <div className="border-t border-gray-100 pt-6 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{betalningstyp === 'bankgiro' ? 'Bankgiro' : 'Plusgiro'}</p>
-                <p className="text-xs md:text-sm font-medium text-gray-800">{faktura.mittBankgiro || '—'}</p>
-              </div>
+              {bankgiroAktiv && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{betalningstyp === 'bankgiro' ? 'Bankgiro' : 'Plusgiro'}</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-800">{faktura.mittBankgiro || '—'}</p>
+                </div>
+              )}
               {faktura.ocr && <div><p className="text-xs text-gray-400 uppercase tracking-wide mb-1">OCR / Referens</p><p className="text-xs md:text-sm font-medium text-gray-800">{faktura.ocr}</p></div>}
               {faktura.mittOrgnr && <div><p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Org.nummer</p><p className="text-xs md:text-sm font-medium text-gray-800">{faktura.mittOrgnr}</p></div>}
               {faktura.mittMoms && <div><p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Momsreg.nr</p><p className="text-xs md:text-sm font-medium text-gray-800">{faktura.mittMoms}</p></div>}
+              {swishAktiv && mittSwish && (
+                <div className="col-span-2 mt-2">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">Betala med Swish</p>
+                  <div className="flex items-center gap-6">
+                    <QRCodeSVG
+                      value={skapaSwishUrl()}
+                      size={105}
+                      level="M"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Swish</p>
+                        <p className="text-sm font-bold text-gray-800">{mittSwish}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Belopp</p>
+                        <p className="text-sm font-bold text-gray-800">{formateraSEK(totalt)}</p>
+                      </div>
+                      {faktura.ocr && (
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Referens</p>
+                          <p className="text-sm font-bold text-gray-800">{faktura.ocr}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {(fSkatt || drojsmal) && (

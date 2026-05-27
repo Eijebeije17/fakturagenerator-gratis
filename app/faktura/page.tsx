@@ -191,7 +191,7 @@ export default function Home() {
           <div className="md:col-span-2 flex flex-col gap-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={bankgiroAktiv} onChange={(e) => setBankgiroAktiv(e.target.checked)} className="w-4 h-4 accent-[#1a2d6e]" />
-              <span className="text-sm text-[#555] font-medium">Använd bankgiro / plusgiro</span>
+              <span className="text-sm text-[#555] font-medium">Använd Bankgiro / Plusgiro</span>
             </label>
             {bankgiroAktiv && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

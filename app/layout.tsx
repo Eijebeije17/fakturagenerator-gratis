@@ -37,6 +37,13 @@ export default function RootLayout({
           data-cf-beacon='{"token": "bbdc6cd221a7473eb557cb4550230aaa"}'
           strategy="afterInteractive"
         />
+
+        <Script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="52eded02-6026-4891-b8ea-49dbab42e612"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )

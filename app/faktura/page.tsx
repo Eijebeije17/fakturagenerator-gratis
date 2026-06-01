@@ -1,4 +1,5 @@
 'use client'
+declare global { interface Window { umami?: { track: (event: string) => void } } }
 
 import { useState, useRef, useEffect } from 'react'
 import { useReactToPrint } from 'react-to-print'
@@ -133,6 +134,7 @@ export default function Home() {
     if (!rader.some(r => r.beskrivning && r.antal && r.pris)) fel.push('Minst en fakturarad krävs')
     if (fel.length > 0) { setValideringsfel(fel); setAktivFlik('forhandsgranskning'); return }
     setValideringsfel([])
+    window.umami?.track('exportera-faktura')
     skrivUt()
   }
 

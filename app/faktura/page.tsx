@@ -1,4 +1,5 @@
 'use client'
+
 declare global { interface Window { umami?: { track: (event: string) => void } } }
 
 import { useState, useRef, useEffect } from 'react'
@@ -29,7 +30,7 @@ export default function Home() {
     meddelande: '',
   })
 
-  const [rader, setRader] = useState([{ beskrivning: '', antal: '', pris: '' }])
+  const [rader, setRader] = useState([{ beskrivning: '', antal: '', pris: '', typ: 'arbete' }])
   const [momssats, setMomssats] = useState(0.25)
   const [betalningstyp, setBetalningstyp] = useState('bankgiro')
   const [fSkatt, setFSkatt] = useState(true)
@@ -45,6 +46,8 @@ export default function Home() {
   const [bankgiroAktiv, setBankgiroAktiv] = useState(true)
   const [swishAktiv, setSwishAktiv] = useState(false)
   const [mittSwish, setMittSwish] = useState('')
+
+  const [rotAktiv, setRotAktiv] = useState(false)
 
   const forhandsvisningRef = useRef(null)
   const loggaRef = useRef<HTMLInputElement>(null)
@@ -72,11 +75,12 @@ export default function Home() {
       if (data.bankgiroAktiv !== undefined) setBankgiroAktiv(data.bankgiroAktiv)
       if (data.swishAktiv !== undefined) setSwishAktiv(data.swishAktiv)
       if (data.mittSwish) setMittSwish(data.mittSwish)
+      if (data.rotAktiv !== undefined) setRotAktiv(data.rotAktiv)
     }
   }, [])
 
   useEffect(() => {
-    const data = { faktura, rader, momssats, betalningstyp, bankgiroAktiv, swishAktiv, mittSwish, fSkatt, drojsmal, logga, accentFarg }
+    const data = { faktura, rader, momssats, betalningstyp, bankgiroAktiv, swishAktiv, mittSwish, rotAktiv, fSkatt, drojsmal, logga, accentFarg }
     localStorage.setItem('faktura-utkast', JSON.stringify(data))
   }, [faktura, rader, momssats, betalningstyp, fSkatt, drojsmal, logga, accentFarg])
 
@@ -100,7 +104,7 @@ export default function Home() {
     setFaktura(nyFaktura)
   }
 
-  function uppdateraRad(index: number, falt: 'beskrivning' | 'antal' | 'pris', varde: string) {
+  function uppdateraRad(index: number, falt: 'beskrivning' | 'antal' | 'pris' | 'typ', varde: string) {
     const nyaRader = [...rader]
     nyaRader[index][falt] = varde
     setRader(nyaRader)
@@ -142,6 +146,10 @@ export default function Home() {
   const subtotal = synligaRader.reduce((sum, rad) => sum + (parseFloat(rad.antal) || 0) * (parseFloat(rad.pris) || 0), 0)
   const moms = subtotal * momssats
   const totalt = subtotal + moms
+  const arbetskostnad = synligaRader.filter(r => r.typ === 'arbete').reduce((sum, rad) => sum + (parseFloat(rad.antal) || 0) * (parseFloat(rad.pris) || 0), 0)
+  console.log('rader:', rader.map(r => ({ typ: r.typ, antal: r.antal, pris: r.pris })))
+  const rotavdrag = rotAktiv ? Math.min(arbetskostnad * 0.3, 50000) : 0
+  const attBetala = totalt - rotavdrag
 
   function formateraSEK(nummer: number) {
     return nummer.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
@@ -259,14 +267,21 @@ export default function Home() {
       <div className="mt-4 bg-white rounded-2xl p-4 md:p-6 border border-[#e8e4d8]">
         <h2 className="text-sm font-black text-[#1a1a1a] mb-4 uppercase tracking-wide">Fakturarader</h2>
         <div className="grid grid-cols-12 gap-2 mb-2">
-          <div className="col-span-6 text-xs font-medium text-[#666] uppercase tracking-wide">Beskrivning <span className="text-red-400">*</span></div>
+          <div className={`${rotAktiv ? 'col-span-4' : 'col-span-6'} text-xs font-medium text-[#666] uppercase tracking-wide`}>Beskrivning <span className="text-red-400">*</span></div>
+          {rotAktiv && <div className="col-span-2 text-xs font-medium text-[#666] uppercase tracking-wide">Typ</div>}
           <div className="col-span-2 text-xs font-medium text-[#666] uppercase tracking-wide">Antal <span className="text-red-400">*</span></div>
           <div className="col-span-3 text-xs font-medium text-[#666] uppercase tracking-wide">Pris (kr) <span className="text-red-400">*</span></div>
           <div className="col-span-1"></div>
         </div>
         {rader.map((rad, index) => (
           <div key={index} className="grid grid-cols-12 gap-2 mb-2">
-            <input className="col-span-6 border border-[#e0ddd4] rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#1a2d6e]" placeholder="Beskrivning" value={rad.beskrivning} onChange={(e) => uppdateraRad(index, 'beskrivning', e.target.value)} />
+            <input className={`${rotAktiv ? 'col-span-4' : 'col-span-6'} border border-[#e0ddd4] rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#1a2d6e]`} placeholder="Beskrivning" value={rad.beskrivning} onChange={(e) => uppdateraRad(index, 'beskrivning', e.target.value)} />
+            {rotAktiv && (
+              <select className="col-span-2 border border-[#e0ddd4] rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#1a2d6e]" value={rad.typ} onChange={(e) => uppdateraRad(index, 'typ', e.target.value)}>
+                <option value="arbete">Arbete</option>
+                <option value="material">Material</option>
+              </select>
+            )}
             <input className="col-span-2 border border-[#e0ddd4] rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#1a2d6e]" type="text" placeholder="1" value={rad.antal} onChange={(e) => uppdateraRad(index, 'antal', e.target.value)} />
             <input className="col-span-3 border border-[#e0ddd4] rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#1a2d6e]" type="text" placeholder="0" value={rad.pris} onChange={(e) => uppdateraRad(index, 'pris', e.target.value)} />
             <button className="col-span-1 text-red-300 hover:text-red-500 transition-colors" onClick={() => taBortRad(index)}>✕</button>
@@ -290,6 +305,10 @@ export default function Home() {
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={drojsmal} onChange={(e) => setDrojsmal(e.target.checked)} className="w-4 h-4 accent-[#1a2d6e]" />
             <span className="text-sm text-[#555] font-medium">Visa dröjsmålsränta på fakturan</span>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={rotAktiv} onChange={(e) => setRotAktiv(e.target.checked)} className="w-4 h-4 accent-[#1a2d6e]" />
+            <span className="text-sm text-[#555] font-medium">Aktivera ROT-avdrag</span>
           </label>
           <div>
             <label className="text-xs font-medium text-[#666] uppercase tracking-wide">Accentfärg på fakturan</label>
@@ -410,8 +429,11 @@ export default function Home() {
               <div className="w-full md:w-64">
                 <div className="flex justify-between text-sm text-gray-500 mb-1"><span>Subtotal</span><span>{formateraSEK(subtotal)}</span></div>
                 <div className="flex justify-between text-sm text-gray-500 mb-1"><span>Moms ({Math.round(momssats * 100)}%)</span><span>{formateraSEK(moms)}</span></div>
+                {rotAktiv && (
+                  <div className="flex justify-between text-sm text-gray-500 mb-1"><span>ROT-avdrag (30% av arbete)</span><span>-{formateraSEK(rotavdrag)}</span></div>
+                )}
                 <div className="flex justify-between text-base md:text-lg font-bold text-gray-800 border-t-2 pt-2 mt-2" style={{ borderColor: accentFarg }}>
-                  <span>Totalt att betala</span><span>{formateraSEK(totalt)}</span>
+                  <span>Totalt att betala</span><span>{formateraSEK(rotAktiv ? attBetala : totalt)}</span>
                 </div>
               </div>
             </div>
@@ -468,6 +490,10 @@ export default function Home() {
                 <p className="text-sm text-gray-500 italic">{faktura.meddelande}</p>
               </div>
             )}
+
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500 font-medium">FakturaFix.se</p>
+            </div>
           </div>
         </div>
       </div>

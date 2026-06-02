@@ -110,7 +110,7 @@ export default function Home() {
     setRader(nyaRader)
   }
 
-  function laggTillRad() { setRader([...rader, { beskrivning: '', antal: '', pris: '' }]) }
+  function laggTillRad() { setRader([...rader, { beskrivning: '', antal: '', pris: '', typ: 'arbete' }]) }
   function taBortRad(index: number) { setRader(rader.filter((_, i) => i !== index)) }
 
   function laddaUppLogga(e: React.ChangeEvent<HTMLInputElement>) {

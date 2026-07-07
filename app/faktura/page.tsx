@@ -507,11 +507,7 @@ export default function Home() {
       {/* Navbar */}
       <nav className="px-5 md:px-10 py-4 md:py-5 flex justify-between items-center sticky top-0 z-50 border-b border-[#ddd8c4]" style={{ background: 'rgba(248, 246, 240, 0.95)', backdropFilter: 'blur(12px)' }}>
         <a href="/" className="font-black text-[#1a1a1a] text-base md:text-xl tracking-tight">FakturaFix</a>
-        <div className="hidden md:flex items-center gap-2 bg-[#e8e4d8] rounded-full p-1 w-fit">
-          <a href="/faktura" className="text-base font-bold px-5 py-1.5 rounded-full bg-[#1a2d6e] text-white transition-colors text-center w-24">Faktura</a>
-          <a href="/offert" className="text-base font-bold px-5 py-1.5 rounded-full text-[#555] hover:bg-white hover:text-[#1a2d6e] transition-colors text-center w-24">Offert</a>
-        </div>
-        <a href="/offert" className="md:hidden text-sm font-bold px-4 py-1.5 rounded-full bg-[#e8e4d8] text-[#555] hover:text-[#1a2d6e] transition-colors">Offert</a>
+        <a href="/offert" className="text-base font-bold px-5 py-2 rounded-full bg-[#e8e4d8] text-[#555] hover:text-[#1a2d6e] transition-colors">Offert</a>
       </nav>
       {notis && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-full text-sm font-bold shadow-lg transition-all ${notis.typ === 'success' ? 'bg-[#1a2d6e] text-white' : 'bg-red-500 text-white'}`}>

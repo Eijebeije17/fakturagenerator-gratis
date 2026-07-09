@@ -363,7 +363,7 @@ export default function Offert() {
             <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&display=swap');`}</style>
             <nav className="px-5 md:px-10 py-4 md:py-5 flex justify-between items-center sticky top-0 z-50 border-b border-[#ddd8c4]" style={{ background: 'rgba(248, 246, 240, 0.95)', backdropFilter: 'blur(12px)' }}>
                 <a href="/" className="font-black text-[#1a1a1a] text-base md:text-xl tracking-tight">FakturaFix</a>
-                <a href="/faktura" className="text-base font-bold px-5 py-2 rounded-full bg-[#e8e4d8] text-[#555] hover:text-[#1a2d6e] transition-colors">Faktura</a>
+                <a href="/faktura" className="bg-[#1a2d6e] text-white text-xs md:text-sm font-bold px-4 py-2.5 md:px-6 md:py-3 rounded-full hover:bg-[#2a3d8e] transition-colors whitespace-nowrap">Faktura</a>
             </nav>
             {notis && (
                 <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-full text-sm font-bold shadow-lg transition-all ${notis.typ === 'success' ? 'bg-[#1a2d6e] text-white' : 'bg-red-500 text-white'}`}>
